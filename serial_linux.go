@@ -60,7 +60,7 @@ func openPort(name string, baud int, databits byte, parity Parity, stopbits Stop
 			f.Close()
 		}
 	}()
-	fd := C.int(f.Fd())
+	fd := C.int(f.Fd()){
 		if C.isatty(fd) == 1 {
 		// Base settings
 		cflagToUse := syscall.CREAD | syscall.CLOCAL | rate
