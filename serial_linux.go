@@ -3,11 +3,12 @@
 package serial
 
 import (
+	
 	"os"
 	"syscall"
 	"time"
+	 "github.com/andrew-d/go-termutil"
 	"unsafe"
-	"C"
 )
 
 func openPort(name string, baud int, databits byte, parity Parity, stopbits StopBits, readTimeout time.Duration) (p *Port, err error) {
@@ -60,8 +61,9 @@ func openPort(name string, baud int, databits byte, parity Parity, stopbits Stop
 			f.Close()
 		}
 	}()
-	fd := C.int(f.Fd())
-	if C.isatty(fd) == 1 {
+	fd :=f.Fd()
+
+	if( termutil.Isatty(fd)){
 		// Base settings
 		cflagToUse := syscall.CREAD | syscall.CLOCAL | rate
 		switch databits {
