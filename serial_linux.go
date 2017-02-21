@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+	"C"
 )
 
 func openPort(name string, baud int, databits byte, parity Parity, stopbits StopBits, readTimeout time.Duration) (p *Port, err error) {
