@@ -59,65 +59,65 @@ func openPort(name string, baud int, databits byte, parity Parity, stopbits Stop
 			f.Close()
 		}
 	}()
+	fd := C.int(f.Fd())
+		if C.isatty(fd) == 1 {
+		// Base settings
+		cflagToUse := syscall.CREAD | syscall.CLOCAL | rate
+		switch databits {
+		case 5:
+			cflagToUse |= syscall.CS5
+		case 6:
+			cflagToUse |= syscall.CS6
+		case 7:
+			cflagToUse |= syscall.CS7
+		case 8:
+			cflagToUse |= syscall.CS8
+		default:
+			return nil, ErrBadSize
+		}
+		// Stop bits settings
+		switch stopbits {
+		case Stop1:
+			// default is 1 stop bit
+		case Stop2:
+			cflagToUse |= syscall.CSTOPB
+		default:
+			// Don't know how to set 1.5
+			return nil, ErrBadStopBits
+		}
+		// Parity settings
+		switch parity {
+		case ParityNone:
+			// default is no parity
+		case ParityOdd:
+			cflagToUse |= syscall.PARENB
+			cflagToUse |= syscall.PARODD
+		case ParityEven:
+			cflagToUse |= syscall.PARENB
+		default:
+			return nil, ErrBadParity
+		}
+		vmin, vtime := posixTimeoutValues(readTimeout)
+		t := syscall.Termios{
+			Iflag:  syscall.IGNPAR,
+			Cflag:  cflagToUse,
+			Cc:     [32]uint8{syscall.VMIN: vmin, syscall.VTIME: vtime},
+			Ispeed: rate,
+			Ospeed: rate,
+		}
 
-	// Base settings
-	cflagToUse := syscall.CREAD | syscall.CLOCAL | rate
-	switch databits {
-	case 5:
-		cflagToUse |= syscall.CS5
-	case 6:
-		cflagToUse |= syscall.CS6
-	case 7:
-		cflagToUse |= syscall.CS7
-	case 8:
-		cflagToUse |= syscall.CS8
-	default:
-		return nil, ErrBadSize
+		if _, _, errno := syscall.Syscall6(
+			syscall.SYS_IOCTL,
+			uintptr(fd),
+			uintptr(syscall.TCSETS),
+			uintptr(unsafe.Pointer(&t)),
+			0,
+			0,
+			0,
+		); errno != 0 {
+			return nil, errno
+		}
 	}
-	// Stop bits settings
-	switch stopbits {
-	case Stop1:
-		// default is 1 stop bit
-	case Stop2:
-		cflagToUse |= syscall.CSTOPB
-	default:
-		// Don't know how to set 1.5
-		return nil, ErrBadStopBits
-	}
-	// Parity settings
-	switch parity {
-	case ParityNone:
-		// default is no parity
-	case ParityOdd:
-		cflagToUse |= syscall.PARENB
-		cflagToUse |= syscall.PARODD
-	case ParityEven:
-		cflagToUse |= syscall.PARENB
-	default:
-		return nil, ErrBadParity
-	}
-	fd := f.Fd()
-	vmin, vtime := posixTimeoutValues(readTimeout)
-	t := syscall.Termios{
-		Iflag:  syscall.IGNPAR,
-		Cflag:  cflagToUse,
-		Cc:     [32]uint8{syscall.VMIN: vmin, syscall.VTIME: vtime},
-		Ispeed: rate,
-		Ospeed: rate,
-	}
-
-	if _, _, errno := syscall.Syscall6(
-		syscall.SYS_IOCTL,
-		uintptr(fd),
-		uintptr(syscall.TCSETS),
-		uintptr(unsafe.Pointer(&t)),
-		0,
-		0,
-		0,
-	); errno != 0 {
-		return nil, errno
-	}
-
 	if err = syscall.SetNonblock(int(fd), false); err != nil {
 		return
 	}
