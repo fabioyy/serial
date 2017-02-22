@@ -62,10 +62,11 @@ func openPort(name string, baud int, databits byte, parity Parity, stopbits Stop
 		}
 	}()
 	fd :=f.Fd()
+cflagToUse := uint32(0);
 
 	if( termutil.Isatty(fd)){
 		// Base settings
-		cflagToUse := syscall.CREAD | syscall.CLOCAL | rate
+		cflagToUse = syscall.CREAD | syscall.CLOCAL | rate
 		switch databits {
 		case 5:
 			cflagToUse |= syscall.CS5
@@ -100,6 +101,16 @@ func openPort(name string, baud int, databits byte, parity Parity, stopbits Stop
 		default:
 			return nil, ErrBadParity
 		}
+	}
+		vmin, vtime := posixTimeoutValues(readTimeout)
+		t := syscall.Termios{
+			Iflag:  syscall.IGNPAR,
+			Cflag:  cflagToUse,
+			Cc:     [32]uint8{syscall.VMIN: vmin, syscall.VTIME: vtime},
+			Ispeed: rate,
+			Ospeed: rate,
+		}
+
 		if _, _, errno := syscall.Syscall6(
 			syscall.SYS_IOCTL,
 			uintptr(fd),
@@ -110,19 +121,7 @@ func openPort(name string, baud int, databits byte, parity Parity, stopbits Stop
 			0,
 		); errno != 0 {
 			return nil, errno
-		}		
-	}
-	vmin, vtime := posixTimeoutValues(readTimeout)
-	t := syscall.Termios{
-		Iflag:  syscall.IGNPAR,
-		Cflag:  cflagToUse,
-		Cc:     [32]uint8{syscall.VMIN: vmin, syscall.VTIME: vtime},
-		Ispeed: rate,
-		Ospeed: rate,
-	}
-
-
-	
+		}
 	if err = syscall.SetNonblock(int(fd), false); err != nil {
 		return
 	}
